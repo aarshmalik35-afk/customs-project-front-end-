@@ -38,12 +38,35 @@ function normalizeFields(payload) {
   if (Array.isArray(data)) return { 'Extracted data': JSON.stringify(data, null, 2) };
   return { 'OCR response': data == null ? 'No extracted fields returned.' : String(data) };
 }
+function normalizedKey(value) {
+  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findField(source, aliases) {
+  if (!source || typeof source !== 'object') return undefined;
+  const wanted = new Set(aliases.map(normalizedKey));
+  for (const [key, value] of Object.entries(source)) {
+    if (wanted.has(normalizedKey(key)) && value !== undefined && value !== null && value !== '') return value;
+  }
+  return undefined;
+}
+
 function riskFrom(payload, fields) {
-  const candidates = [payload?.risk_score, payload?.riskScore, payload?.data?.risk_score, payload?.data?.riskScore, fields?.risk_score, fields?.riskScore];
-  const raw = candidates.find(v => v !== undefined && v !== null && v !== '');
+  const sources = [fields, payload?.data, payload?.result, payload?.fields, payload];
+  let raw;
+  for (const source of sources) {
+    raw = findField(source, ['Risk Score', 'risk_score', 'riskScore', 'risk']);
+    if (raw !== undefined) break;
+  }
   if (raw === undefined) return null;
-  const numeric = Number(String(raw).replace('%', ''));
+  const numeric = Number(String(raw).replace('%', '').trim());
   return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : null;
+}
+
+function displayField(fields, aliases, fallback = '—') {
+  const value = findField(fields, aliases);
+  if (value === undefined || value === null || value === '') return fallback;
+  return String(value);
 }
 
 function App() {
@@ -160,7 +183,30 @@ function App() {
               <button className="button button-primary process-button" disabled={!file || busy} onClick={processInvoice}>{busy ? <><LoaderCircle className="spin" size={17}/> Processing invoice…</> : <><Zap size={17}/> Process invoice <ArrowRight size={16}/></>}</button><div className="process-footnote"><span><ShieldCheck size={13}/> Secure API request</span><span><Clock3 size={13}/> Processing time varies</span></div>
             </section>
             <section className="panel results-panel"><div className="panel-heading"><div><div className="section-kicker">02 / EXTRACTION OUTPUT</div><h2>Extracted data</h2><p>Review the values returned by the OCR backend.</p></div><span className={`result-status ${result ? 'result-status-done' : ''}`}><span/>{result ? 'Response received' : 'Awaiting input'}</span></div>
-              {!result ? <div className="empty-results"><div className="empty-illustration"><div className="empty-doc"><FileText size={29}/><span><Sparkles size={13}/></span></div><div className="empty-orbit orbit-one"/><div className="empty-orbit orbit-two"/></div><h3>Your results will appear here</h3><p>Upload an invoice and run extraction to view the fields returned by your backend.</p><div className="empty-feature-list"><span><CheckCircle2 size={15}/> Structured field response</span><span><CheckCircle2 size={15}/> Review before export</span><span><CheckCircle2 size={15}/> CSV download</span></div></div> : <><div className="result-file-strip"><div className="result-file-icon"><FileCheck2 size={17}/></div><div className="result-file-copy"><b>{result.filename}</b><span>Processed {formatDate(result.createdAt)}</span></div><span className="status-tag tag-success"><span/>{result.status}</span></div><div className="fields-heading"><b>Extracted fields</b><span>{fieldEntries.length} values</span></div><div className="field-grid">{fieldEntries.map(([key, value]) => <div className="field-card" key={key}><span>{prettyLabel(key)}</span><b title={String(value)}>{String(value).length > 130 ? `${String(value).slice(0, 127)}…` : String(value)}</b></div>)}</div><div className="raw-response"><details><summary><span><Command size={14}/> Raw API response</span><ChevronDown size={15}/></summary><pre>{JSON.stringify(result.payload, null, 2)}</pre></details></div><div className="result-actions"><button className="button button-secondary" onClick={exportResult}><ArrowDownToLine size={16}/> Export CSV</button><button className="button button-primary" onClick={() => { setFile(null); setPreview(''); setResult(null); setError(''); setNotice(''); fileInput.current && (fileInput.current.value = ''); }}><Plus size={16}/> Process another</button></div></>}
+              {!result ? <div className="empty-results"><div className="empty-illustration"><div className="empty-doc"><FileText size={29}/><span><Sparkles size={13}/></span></div><div className="empty-orbit orbit-one"/><div className="empty-orbit orbit-two"/></div><h3>Your results will appear here</h3><p>Upload an invoice and run extraction to view the fields returned by your backend.</p><div className="empty-feature-list"><span><CheckCircle2 size={15}/> Structured field response</span><span><CheckCircle2 size={15}/> Review before export</span><span><CheckCircle2 size={15}/> CSV download</span></div></div> : <><div className="result-file-strip"><div className="result-file-icon"><FileCheck2 size={17}/></div><div className="result-file-copy"><b>{result.filename}</b><span>Processed {formatDate(result.createdAt)}</span></div><span className="status-tag tag-success"><span/>{result.status}</span></div><section className="risk-summary" aria-label="Risk assessment results" style={{ margin: '18px 0', padding: '16px', border: '1px solid var(--border, #e5e7eb)', borderRadius: '14px', background: 'var(--panel, #fff)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                    <div><div className="section-kicker">RISK ENGINE</div><h3 style={{ margin: '4px 0 0', fontSize: '17px' }}>Customs risk assessment</h3></div>
+                    <span style={{ padding: '6px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, background: /high|critical/i.test(displayField(fields, ['Risk Level'])) ? '#fee2e2' : /medium|moderate/i.test(displayField(fields, ['Risk Level'])) ? '#fef3c7' : '#dcfce7', color: /high|critical/i.test(displayField(fields, ['Risk Level'])) ? '#991b1b' : /medium|moderate/i.test(displayField(fields, ['Risk Level'])) ? '#92400e' : '#166534' }}>
+                      {displayField(fields, ['Risk Level'], 'Risk level unavailable')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '10px' }}>
+                    {[
+                      { label: 'Risk Score', value: risk == null ? displayField(fields, ['Risk Score']) : `${risk}%` },
+                      { label: 'Confidence Score', value: displayField(fields, ['Confidence Score', 'confidence_score', 'confidenceScore']) },
+                      { label: 'Decision', value: displayField(fields, ['Decision', 'Final Decision']) },
+                      { label: 'Country Risk', value: displayField(fields, ['Country Risk Level', 'Country Risk', 'country_risk_level']) },
+                    ].map(item => <div key={item.label} style={{ padding: '12px', borderRadius: '10px', background: 'var(--surface, #f8fafc)', minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', color: 'var(--muted, #64748b)', marginBottom: '7px' }}>{item.label}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, overflowWrap: 'anywhere' }}>{item.value}</div>
+                    </div>)}
+                  </div>
+                  <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', background: 'var(--surface, #f8fafc)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--muted, #64748b)', marginBottom: '6px' }}>Risk Reason</div>
+                    <div style={{ fontSize: '13px', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{displayField(fields, ['Risk Reason', 'risk_reason', 'riskReason'], 'No risk reason returned by the backend.')}</div>
+                  </div>
+                </section>
+                <div className="fields-heading"><b>Extracted fields</b><span>{fieldEntries.length} values</span></div><div className="field-grid">{fieldEntries.map(([key, value]) => <div className="field-card" key={key}><span>{prettyLabel(key)}</span><b title={String(value)}>{String(value).length > 130 ? `${String(value).slice(0, 127)}…` : String(value)}</b></div>)}</div><div className="raw-response"><details><summary><span><Command size={14}/> Raw API response</span><ChevronDown size={15}/></summary><pre>{JSON.stringify(result.payload, null, 2)}</pre></details></div><div className="result-actions"><button className="button button-secondary" onClick={exportResult}><ArrowDownToLine size={16}/> Export CSV</button><button className="button button-primary" onClick={() => { setFile(null); setPreview(''); setResult(null); setError(''); setNotice(''); fileInput.current && (fileInput.current.value = ''); }}><Plus size={16}/> Process another</button></div></>}
               <div className="result-footer"><span><Fingerprint size={14}/> Values are returned by your API</span><button onClick={() => setShowSettings(true)}>Endpoint details <ArrowUpRight size={13}/></button></div>
             </section>
           </div>
