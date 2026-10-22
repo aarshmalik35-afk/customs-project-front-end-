@@ -57,3 +57,16 @@
 @media(max-width:950px){.work-grid{grid-template-columns:1fr}.upload-panel,.results-panel{min-height:0}.field-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.results-panel{min-height:0}}
 @media(max-width:700px){.content-wrap{padding:20px 15px 14px}.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.risk-summary [style*="grid-template-columns"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:420px){.field-grid{grid-template-columns:1fr}.result-actions{flex-direction:column}.risk-summary [style*="grid-template-columns"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* Split workspace: upload + extracted fields share the top row; risk engine spans below. */
+.work-grid{grid-template-columns:minmax(300px,.92fr) minmax(0,1.08fr);align-items:start}
+.upload-panel,.results-panel{min-height:0;height:fit-content}
+.results-panel{min-width:0}
+.field-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-height:260px}
+.risk-wide-panel{width:100%;margin:12px 0 0!important;padding:14px 16px!important}
+.risk-wide-panel>div:first-child{margin-bottom:10px!important}
+.risk-wide-panel [style*="grid-template-columns"]{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+@media(max-width:1100px){.work-grid{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.risk-wide-panel [style*="grid-template-columns"]{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:850px){.work-grid{grid-template-columns:1fr}.risk-wide-panel [style*="grid-template-columns"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}.field-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.risk-wide-panel [style*="grid-template-columns"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:420px){.field-grid{grid-template-columns:1fr}}
