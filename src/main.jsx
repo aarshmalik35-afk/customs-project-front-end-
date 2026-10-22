@@ -227,7 +227,3 @@ function PipelineStep({ n, title, subtitle, done, loading }) { return <div class
 function EmptyState({ title, text }) { return <div className="table-empty"><div><FileSearch size={22}/></div><b>{title}</b><span>{text}</span></div>; }
 
 createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
-function PipelineStep({ n, title, subtitle, done, loading }) { return <div className={`pipeline-step ${done ? 'step-done' : ''}`}><div className="pipeline-number">{loading ? <LoaderCircle className="spin" size={14}/> : done ? <Check size={14}/> : n}</div><div className="pipeline-copy"><b>{title}</b><span>{subtitle}</span></div>{done && <CheckCircle2 className="pipeline-check" size={16}/>}</div>; }
-function EmptyState({ title, text }) { return <div className="table-empty"><div><FileSearch size={22}/></div><b>{title}</b><span>{text}</span></div>; }
-
-createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
